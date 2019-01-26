@@ -25,7 +25,7 @@ def num_overlaps(data, y_positions):
 
 
 def possible_y_positions(data):
-    return itertools.product(*[[y_pos for y_pos in range(data['capacity'] - data['demands'][j] + 1)] for j in range(data['njobs'])])
+    return itertools.product(*[[y_pos for y_pos in range(data['capacity']+data['zmax'] - data['demands'][j] + 1)] for j in range(data['njobs'])])
 
 
 def num_zeroes(lst):
@@ -37,15 +37,10 @@ def y_positions_min_overlap(data, stop_on_feas=False, fixed_positions=None):
     best_count = data['njobs'] * data['njobs']
     best_candidate = None
 
-    lpositions = list(all_positions)
-
     if fixed_positions is not None:
-        lpositions = [pvec for pvec in lpositions if all(pvec[j] == fixed_pos for j, fixed_pos in fixed_positions.items())]
+        all_positions = filter(lambda pvec: all(pvec[j] == fixed_pos for j, fixed_pos in fixed_positions.items()), all_positions)
 
-    tcount = len(lpositions)
-    ctr = 0
-
-    for candidate in lpositions:
+    for candidate in all_positions:
         candidate_overlap_count = num_overlaps(data, candidate)
         if candidate_overlap_count < best_count:
             best_count = candidate_overlap_count
@@ -54,7 +49,5 @@ def y_positions_min_overlap(data, stop_on_feas=False, fixed_positions=None):
                 return best_candidate
         elif candidate_overlap_count == best_count and num_zeroes(candidate) > num_zeroes(best_candidate):
             best_candidate = candidate
-        print(f'\rProgress: {ctr / tcount * 100.0}, Best count: {best_count}', end='')
-        ctr += 1
 
     return best_candidate

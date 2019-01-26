@@ -1,27 +1,8 @@
 import sys
 from psplibconverter import sm_to_object
 
-from rectangles_to_tikz import rects_to_pdf
+from rectangles_to_tikz import rects_to_tikz_picture, tikz_pics_to_pdf
 from schedule_to_rectangles import y_positions_min_overlap, rects_for_jobs
-
-'''
-example_input = {
-    'njobs': 8,
-    # widths
-    'durations': [0, 3, 2, 2, 3, 1, 2, 0],
-    # heights
-    'demands': [0, 3, 2, 2, 1, 2, 1, 0],
-    # total height
-    'capacity': 4,
-    # x positions
-    'starting_times': [0, 0, 3, 3, 5, 5, 8, 10]
-}
-
-example_output = {
-    # vertical position
-    'y_positions': [0, 0, 0, 2, 0, 1, 0, 0]
-}
-'''
 
 
 def parse_schedule(fn):
@@ -38,7 +19,8 @@ def draw_schedule_rects_for_res(proj_obj, sts, res_ix=0):
         # heights
         'demands': proj_obj['demands'][res_ix],
         # total height
-        'capacity': proj_obj['capacities'][res_ix] + int(proj_obj['zmax'][res_ix]) * 0,
+        'capacity': proj_obj['capacities'][res_ix],
+        'zmax': proj_obj['zmax'][res_ix],
         # x positions
         'starting_times': sts
     }
@@ -58,9 +40,9 @@ def main(args):
     proj_obj = sm_to_object(proj_fn)
     sts = parse_schedule(sched_fn)
 
-    for res_ix in range(proj_obj['numresources']):
-        rects = draw_schedule_rects_for_res(proj_obj, sts, res_ix)
-        rects_to_pdf(rects, out_fn_base+f'_res{res_ix}.pdf')
+    tikz_pics = [ rects_to_tikz_picture(proj_obj, draw_schedule_rects_for_res(proj_obj, sts, res_ix), res_name=f'$r{res_ix + 1}$', res_ix=res_ix) for res_ix in range(proj_obj['numresources']) ]
+    tikz_pics_to_pdf(tikz_pics, out_fn_base)
+
 
 
 if __name__ == '__main__':

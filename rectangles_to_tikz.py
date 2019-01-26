@@ -27,23 +27,21 @@ TEX_PREFIX = """
 \\documentclass{article}
 \\usepackage[utf8]{inputenc}
 \\usepackage{tikz}
-\\title{TikZ - Playground}
-\\author{Andre Schnabel}
-\\date{}
 \\begin{document}
-\\maketitle
 """
 TEX_SUFFIX = '\n\\end{document}'
 
 
-def axis_for_rects(rects, origin_x=0.0, origin_y=0.0, scale=2.0):
+def axis_for_rects(proj_obj, rects, origin_x=0.0, origin_y=0.0, scale=2.0, res_name='$r$', res_ix=0):
     xmax = max([rect.x + rect.w for rect in rects]) + 1
     ymax = max([rect.y + rect.h for rect in rects]) + 1
+    ymax_regular = proj_obj['capacities'][res_ix]
+    ymax_with_oc = ymax_regular + proj_obj['zmax'][res_ix]
     ostr = f'\draw[->,thick] ({origin_x},{origin_y})--({origin_x + xmax * scale},{origin_y}) ' + 'node[right]{$t$};\n'
-    ostr += f'\draw[->,thick] ({origin_x},{origin_y})--({origin_x},{origin_y + ymax * scale}) ' + 'node[above]{$r$};\n'
+    ostr += f'\draw[->,thick] ({origin_x},{origin_y})--({origin_x},{origin_y + (ymax_with_oc + 1) * scale}) ' + 'node[above]{' + res_name + '};\n'
     ctr = 1
     bbox_opts = {'fill': 'none', 'draw': 'none'}
-    for x in np.arange(origin_x, origin_x + xmax, scale):
+    for x in np.arange(origin_x, origin_x + xmax * scale, scale):
         bar_top = (x, origin_y)
         bar_bottom = (x, origin_y - scale)
         ostr += f'\draw[-,thick] ({bar_top[0]},{bar_top[1]})--({bar_bottom[0]},{bar_bottom[1]});\n'
@@ -51,12 +49,14 @@ def axis_for_rects(rects, origin_x=0.0, origin_y=0.0, scale=2.0):
             ostr += draw_rect(bar_top, (x + scale, origin_y - scale), str(ctr), bbox_opts)
         ctr += 1
     ctr = 1
-    for y in np.arange(origin_y, origin_y + ymax, scale):
+    for y in np.arange(origin_y, origin_y + (ymax_with_oc + 1) * scale, scale):
         bar_right = (origin_x, y)
         bar_left = (origin_x - scale * 0.5, y)
         ostr += f'\draw[-,thick] ({bar_right[0]},{bar_right[1]})--({bar_left[0]},{bar_left[1]});\n'
         ostr += draw_rect((bar_left[0] - scale * 0.5, bar_left[1] - scale * 0.5), (bar_left[0], bar_left[1] + scale * 0.5), str(ctr), bbox_opts)
         ctr += 1
+    ostr += f'\draw[-,thick,color=red,dotted] ({origin_x},{origin_y + ymax_regular * scale})--({xmax - scale},{origin_y + ymax_regular * scale});\n'
+    ostr += f'\draw[-,thick,color=red,dotted] ({origin_x},{origin_y + ymax_with_oc * scale})--({xmax - scale},{origin_y + ymax_with_oc * scale});\n'
     return ostr
 
 
@@ -71,10 +71,23 @@ def cleanup_tempfiles(tex_filename):
     try_del([base_fn + '.' + dext for dext in del_extensions])
 
 
-def rects_to_pdf(rects, out_filename):
+def rects_to_pdf(proj_obj, rects, out_filename, res_name='$r$', res_ix=0):
     tex_filename = out_filename.replace('.pdf', '.tex')
     try_del([out_filename, tex_filename])
     with open(tex_filename, 'w') as fp:
-        fp.write(TEX_PREFIX + TIKZ_PREFIX + rects_to_tikz(rects, scale=1.0) + axis_for_rects(rects, scale=1.0) + TIKZ_SUFFIX + TEX_SUFFIX)
+        fp.write(TEX_PREFIX + rects_to_tikz_picture(proj_obj, rects, res_name, res_ix) + TEX_SUFFIX)
+    os.system('pdflatex ' + tex_filename)
+    cleanup_tempfiles(tex_filename)
+
+
+def rects_to_tikz_picture(proj_obj, rects, res_name='$r$', res_ix=0):
+    return TIKZ_PREFIX + rects_to_tikz(rects, scale=1.0) + axis_for_rects(proj_obj, rects, scale=1.0, res_name=res_name, res_ix=res_ix) + TIKZ_SUFFIX
+
+
+def tikz_pics_to_pdf(tikz_pics, out_fn_base):
+    tex_filename = out_fn_base + '.tex'
+    try_del([out_fn_base + '.pdf', tex_filename])
+    with open(tex_filename, 'w') as fp:
+        fp.write(TEX_PREFIX + '\n\\pagebreak\n'.join(tikz_pics) + TEX_SUFFIX)
     os.system('pdflatex ' + tex_filename)
     cleanup_tempfiles(tex_filename)
